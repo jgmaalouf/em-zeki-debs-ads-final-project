@@ -43,6 +43,7 @@ int Session::loadDeck(const Filters& f) {
         if (other.age < f.minAge || other.age > f.maxAge) continue;   // age band
         if (std::find(alreadySeen_.begin(), alreadySeen_.end(), id) != alreadySeen_.end())
             continue;                                                 // already swiped this session
+        if (swipeGraph_.hasEdge(userID_, id)) continue;               // already right-swiped in any session (incl. matches)
         if (db_.isBlocked(userID_, id) || db_.isBlocked(id, userID_)) // blocks are bidirectional in effect
             continue;
         int distance = cityGraph_.getDistance(me->city, other.city);

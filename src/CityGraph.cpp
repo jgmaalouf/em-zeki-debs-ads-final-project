@@ -22,7 +22,7 @@ CityGraph::CityGraph() {
         {"Aley",     "Zahle",    30},
         {"Beirut",   "Zahle",    50},
         {"Zahle",    "Baalbek",  40},
-        {"Beirut",   "Tripoli",  80},  // coastal shortcut, parallel to Jounieh-Byblos-...
+        {"Beirut",   "Tripoli",  80},
         {"Tripoli",  "Akkar",    45},
         {"Tyre",     "Nabatieh", 35},
         {"Zahle",    "Hasbaya",  60},

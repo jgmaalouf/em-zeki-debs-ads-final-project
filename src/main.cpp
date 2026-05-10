@@ -2,9 +2,10 @@
 // (session menu). The big while-loop just bounces between them based
 // on whether `session` is null.
 
+#include <cctype>
 #include <iostream>
-#include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,17 +19,42 @@
 // ---------- tiny I/O helpers ----------
 
 // Read an int from stdin and don't move on until the user gives us one.
-// We also eat the trailing newline so the next getline() doesn't see it.
+// Reads a whole line and parses it strictly: trailing junk like "1o3" is
+// rejected, not silently truncated to 1. operator>> is a *prefix* parser
+// and would happily accept "1o3" as 1, leaving "o3" in the buffer.
 int readInt(const std::string& prompt) {
     std::cout << prompt;
-    int x;
-    while (!(std::cin >> x)) {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "  invalid integer, try again: ";
+    while (true) {
+        std::string line;
+        if (!std::getline(std::cin, line)) {
+            std::cout << "  invalid integer, try again: ";
+            std::cin.clear();
+            continue;
+        }
+        try {
+            size_t consumed = 0;
+            int x = std::stoi(line, &consumed);
+            // Allow trailing whitespace, but reject any other trailing chars.
+            while (consumed < line.size() && std::isspace(static_cast<unsigned char>(line[consumed]))) {
+                ++consumed;
+            }
+            if (consumed != line.size()) throw std::invalid_argument("trailing garbage");
+            return x;
+        } catch (...) {
+            std::cout << "  invalid integer, try again: ";
+        }
     }
-    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    return x;
+}
+
+// Read an int that must fall in [lo, hi]. Loops on out-of-range input the
+// same way readInt loops on garbage. Domain validation lives here (and at
+// the callsite for cross-field rules), not in the parser.
+int readIntInRange(const std::string& prompt, int lo, int hi) {
+    while (true) {
+        int x = readInt(prompt);
+        if (x >= lo && x <= hi) return x;
+        std::cout << "  must be between " << lo << " and " << hi << "\n";
+    }
 }
 
 std::string readLine(const std::string& prompt) {
@@ -195,13 +221,27 @@ bool handleSession(Session& session,
             quit = true;
             return false;
 
-        case 1:
+        case 1: {
             // Filters are kept per-process, not per-session, so they
             // persist if you sign out and back in. Could change that.
-            filters.minAge = readInt("  min age: ");
-            filters.maxAge = readInt("  max age: ");
-            filters.maxDistanceKm = readInt("  max distance (km): ");
+            //
+            // Bounds: ages clamped to [18, 99] (legal-adult floor and a
+            // sensible ceiling); distance is non-negative and capped at
+            // the default "unlimited" sentinel. maxAge must be >= minAge,
+            // otherwise the deck would always be empty.
+            int minAge = readIntInRange("  min age (18-99): ", 18, 99);
+            int maxAge;
+            while (true) {
+                maxAge = readIntInRange("  max age (18-99): ", 18, 99);
+                if (maxAge >= minAge) break;
+                std::cout << "  max age must be >= min age (" << minAge << ")\n";
+            }
+            int maxDist = readIntInRange("  max distance (km, 0-100000): ", 0, 100000);
+            filters.minAge = minAge;
+            filters.maxAge = maxAge;
+            filters.maxDistanceKm = maxDist;
             return true;
+        }
 
         case 2: {
             int n = session.loadDeck(filters);
