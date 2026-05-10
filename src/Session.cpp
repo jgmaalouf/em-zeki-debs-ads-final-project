@@ -26,17 +26,6 @@ void Session::markSeen(int target) {
     }
 }
 
-namespace {
-
-// Tiny pair used while ranking the deck. Kept anonymous because no
-// other file needs it.
-struct Scored {
-    int id;
-    int score;
-};
-
-}
-
 // Build the deck from scratch. Walk every user, drop the ones that
 // fail any filter, score what's left, sort by score descending, and
 // hand the IDs to the deck.
@@ -62,11 +51,9 @@ int Session::loadDeck(const Filters& f) {
         kept.push_back({id, compatibilityScore(*me, other, distance)});
     }
 
-    // Sort by score descending - cmp returns true when b is "less"
-    // than a, which mergeSort treats as "b comes first".
-    mergeSort(kept, [](const Scored& a, const Scored& b) {
-        return a.score > b.score;
-    });
+    // Sort by score descending. mergeSort always orders Scored that
+    // way, so no comparator argument is needed.
+    mergeSort(kept);
 
     // Strip out the score column - the deck only needs IDs.
     std::vector<int> rankedIDs;
